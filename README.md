@@ -1,1 +1,1 @@
-Qt Frameless Window
+Qt Frameless Window(Windows/Linux)
