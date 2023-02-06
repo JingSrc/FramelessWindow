@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/MainWindow">
+        <file>icon/window_restore.svg</file>
+        <file>icon/window_min.svg</file>
+        <file>icon/window_close.svg</file>
+        <file>images/app.svg</file>
+        <file>icon/window_max.svg</file>
+    </qresource>
+</RCC>
