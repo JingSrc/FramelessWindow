@@ -228,6 +228,43 @@ static int CornerEdge2WmGravity(const CornerEdge &ce)
         contentXRect.height = static_cast<decltype (contentXRect.height)>(tmpRect.height()+resizeHandleSize*2);
         XShapeCombineRectangles(QX11Info::display(), winId, ShapeInput, margins.left() - resizeHandleSize, margins.top() - resizeHandleSize, &contentXRect, 1, ShapeSet, YXBanded);
     }
+    
+    void SetWindowTopmost(const QWidget *widget, bool topmost)
+    {
+        auto winId = static_cast<uint>(widget->winId());
+
+        auto wmStateAbove = XInternAtom(QX11Info::display(), "_NET_WM_STATE_ABOVE", 1);
+        if (wmStateAbove == None)
+        {
+            qWarning() << "Failed to create atom with name _NET_WM_STATE_ABOVE";
+            return;
+        }
+
+        auto wmNetWmState = XInternAtom(QX11Info::display(), "_NET_WM_STATE", 1);
+        if (wmNetWmState == None)
+        {
+            qWarning() << "Failed to create atom with name _NET_WM_STATE";
+            return;
+        }
+
+        if(wmStateAbove != None)
+        {
+            XClientMessageEvent xclient;
+            memset(&xclient, 0, sizeof(xclient));
+
+            xclient.type = ClientMessage;
+            xclient.window = winId;
+            xclient.message_type = wmNetWmState;
+            xclient.format = 32;
+            xclient.data.l[0] = topmost ? 1 : 0;
+            xclient.data.l[1] = wmStateAbove;
+            xclient.data.l[2] = 1;
+            xclient.data.l[3] = 1;
+            xclient.data.l[4] = 0;
+
+            XSendEvent(QX11Info::display(), DefaultRootWindow(QX11Info::display()), False, SubstructureRedirectMask | SubstructureNotifyMask, (XEvent*)&xclient);
+        }
+    }
 }
 #elif defined(Q_OS_WIN)
 #endif
