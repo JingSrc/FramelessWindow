@@ -298,24 +298,36 @@ bool MainWindow::event(QEvent *event)
     {
     case QEvent::WindowStateChange:
         {
-            if (windowState() & Qt::WindowMaximized)
+            if (windowState() & Qt::WindowFullScreen)
             {
-                ui->titleMaxButton->setIcon(QIcon{ ":/MainWindow/icon/window_restore.svg" });
-                ui->titleMaxButton->setIconSize(QSize{ 14, 14 });
-                ui->titleMaxButton->setToolTip(tr("还原"));
-
-#if defined(Q_OS_LINUX)
+                ui->titleBar->setVisible(false);
+#ifdef Q_OS_WIN
                 layout()->setContentsMargins(0, 0, 0, 0);
 #endif
             }
             else
             {
-                ui->titleMaxButton->setIcon(QIcon{ ":/MainWindow/icon/window_max.svg" });
-                ui->titleMaxButton->setIconSize(QSize{ 12, 12 });
-                ui->titleMaxButton->setToolTip(tr("最大化"));
-#if defined(Q_OS_LINUX)
+                ui->titleBar->setVisible(true);
+
+#ifdef Q_OS_WIN
                 layout()->setContentsMargins(m_padding, m_padding, m_padding, m_padding);
 #endif
+
+                if (windowState() & Qt::WindowMaximized)
+                {
+                    ui->titleMaxButton->setIcon(QIcon{ ":/MainWindow/icon/window_restore.svg" });
+                    ui->titleMaxButton->setToolTip(tr("还原"));
+
+#ifdef Q_OS_WIN
+                    auto w = style()->pixelMetric(QStyle::PM_DefaultFrameWidth)*2;
+                    layout()->setContentsMargins(m_padding-w, m_padding-w, m_padding-w, m_padding-w);
+#endif
+                }
+                else
+                {
+                    ui->titleMaxButton->setIcon(QIcon{ ":/MainWindow/icon/window_max.svg" });
+                    ui->titleMaxButton->setToolTip(tr("最大化"));
+                }
             }
 
             update();
@@ -323,13 +335,12 @@ bool MainWindow::event(QEvent *event)
         }
     case QEvent::HoverMove:
         {
-            auto hoverEvent = dynamic_cast<QHoverEvent *>(event);
 #if defined(Q_OS_LINUX)
-#   ifdef CursorShape
-#       undef CursorShape
-#   endif
-#endif
-
+#ifdef CursorShape
+#   undef CursorShape
+            
+            auto hoverEvent = dynamic_cast<QHoverEvent *>(event);
+            
             static const QMap<CornerEdge, Qt::CursorShape> cursorShape
             {
                 { CornerEdge::Top, Qt::SizeVerCursor },
@@ -345,8 +356,10 @@ bool MainWindow::event(QEvent *event)
 
             auto cornerEdge = GetCornerEdge(this, hoverEvent->pos(), layout()->contentsMargins()+m_padding/4, m_padding);
             setCursor(cursorShape.value(cornerEdge));
+#endif
+#endif
             break;
-    }
+        }
     default:
         break;
     }
@@ -379,23 +392,26 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *r
 
                 QPoint mousePos{ GET_X_LPARAM(msg->lParam) - rect.left, GET_Y_LPARAM(msg->lParam) - rect.top };
 
-                auto cornerEdge = GetCornerEdge(this, mousePos, layout()->contentsMargins() + m_padding / 4, m_padding);
-                switch (cornerEdge)
+                if (!isMaximized() && !isFullScreen())
                 {
-                case CornerEdge::Top: *result = HTTOP; break;
-                case CornerEdge::Bottom: *result = HTBOTTOM; break;
-                case CornerEdge::Left: *result = HTLEFT; break;
-                case CornerEdge::Right: *result = HTRIGHT; break;
-                case CornerEdge::TopLeft: *result = HTTOPLEFT; break;
-                case CornerEdge::BottomRight: *result = HTBOTTOMRIGHT; break;
-                case CornerEdge::TopRight: *result = HTTOPRIGHT; break;
-                case CornerEdge::BottomLeft: *result = HTBOTTOMLEFT; break;
-                default: *result = 0; break;
-                }
+                    auto cornerEdge = GetCornerEdge(this, mousePos, layout()->contentsMargins() + m_padding / 4, m_padding);
+                    switch (cornerEdge)
+                    {
+                    case CornerEdge::Top: *result = HTTOP; break;
+                    case CornerEdge::Bottom: *result = HTBOTTOM; break;
+                    case CornerEdge::Left: *result = HTLEFT; break;
+                    case CornerEdge::Right: *result = HTRIGHT; break;
+                    case CornerEdge::TopLeft: *result = HTTOPLEFT; break;
+                    case CornerEdge::BottomRight: *result = HTBOTTOMRIGHT; break;
+                    case CornerEdge::TopRight: *result = HTTOPRIGHT; break;
+                    case CornerEdge::BottomLeft: *result = HTBOTTOMLEFT; break;
+                    default: *result = 0; break;
+                    }
 
-                if (*result != 0)
-                {
-                    return true;
+                    if (*result != 0)
+                    {
+                        return true;
+                    }
                 }
 
                 auto titleRect = ui->titleBar->geometry();
@@ -405,7 +421,8 @@ bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *r
                     return true;
                 }
 
-                break;
+                *result = HTCLIENT;
+                return true;
             }
         default:
             break;
